@@ -1,0 +1,254 @@
+---
+title: "pollution1"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r cars}
+summary(cars)
+```
+
+```{r}
+library(tidyr)
+library(plyr)
+library(scales)
+library(dplyr)
+library(data.table)
+library(ggplot2)
+library(forecast)
+library(car)
+library(TTR)
+library(caTools)
+library(randomForest)
+library(party)
+library(corrplot)
+```
+
+```{r}
+pollution1 <- read.csv("C:/Users/Gunjan/Desktop/pollution/pollution_us_2000_2016.csv")
+class(pollution1)
+pollution1$localdate<- pollution1$Date.Local
+pollution1 <- separate(pollution1,Date.Local,c("Year","Month","Date"),sep = "-")
+pollution1$CO.Units <- NULL
+pollution1$O3.Units <- NULL
+pollution1$NO2.Units <- NULL
+pollution1$Units <- pollution1$SO2.Units
+pollution1$SO2.Units <- NULL
+dim(pollution1)
+glimpse(pollution1)
+```
+
+```{r}
+# first 5 row of the dataframe
+head(pollution1,n=5)
+```
+
+```{r}
+# last 5 row of the dataframe
+tail(pollution1,n=5)
+```
+
+```{r}
+summary(pollution1)
+```
+
+```{r}
+str(pollution1)
+```
+
+```{r}
+# check for missing values
+any(is.na(pollution1))
+pollution1 <- na.omit(pollution1)
+pollution1
+any(is.na(pollution1))
+```
+
+```{r}
+# visualisation
+hist(pollution1$NO2.AQI)
+```
+
+```{r}
+boxplot(pollution1$NO2.AQI)
+```
+
+```{r}
+hist(pollution1$O3.AQI)
+```
+
+```{r}
+boxplot(pollution1$O3.AQI)
+```
+
+```{r}
+hist(pollution1$CO.AQI)
+```
+
+```{r}
+boxplot(pollution1$CO.AQI)
+```
+
+```{r}
+hist(pollution1$SO2.AQI)
+```
+
+```{r}
+boxplot(pollution1$SO2.AQI)
+```
+
+```{r}
+cor(pollution1$NO2.AQI,pollution1$CO.AQI)
+cor(pollution1$NO2.AQI,pollution1$O3.AQI)
+cor(pollution1$NO2.AQI,pollution1$SO2.AQI)
+cor(pollution1$O3.AQI,pollution1$CO.AQI)
+cor(pollution1$O3.AQI,pollution1$SO2.AQI)
+cor(pollution1$CO.AQI,pollution1$SO2.AQI)
+```
+
+```{r}
+ggplot(pollution1,aes(NO2.AQI,CO.AQI))+geom_point()+geom_smooth(method = "lm")
+```
+
+```{r}
+ggplot(pollution1,aes(NO2.AQI,SO2.AQI))+geom_point()+geom_smooth(method = "lm")
+```
+
+```{r}
+ggplot(pollution1,aes(SO2.AQI,CO.AQI))+geom_point()+geom_smooth(method = "lm")
+```
+
+```{r}
+corrplot(cor,method = ellipse)
+```
+
+
+```{r}
+ggplot(pollution1,aes(Month, NO2.AQI,fill=Year)) + ggtitle("NO2 AQI over the years") +
+geom_bar(stat="identity")
+```
+
+```{r}
+#pollution$Month = as.Date(pollution$localdate,format ="%Y-%m-%d")
+pollution1[,'localdate']<-as.POSIXct(strptime(pollution1[,'localdate'], "%Y-%m-%d"))
+pollution1$localdate <- as.Date(cut(pollution1$localdate, breaks = "month"))
+ggplot(data = pollution1,aes(localdate, NO2.AQI)) + 
+  ggtitle("NO2 AQI over the years") +  
+  stat_summary(fun.y = mean, geom = "line") + 
+  scale_x_date(labels = date_format("%Y-%m"), date_breaks = "6 month") +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+```{r}
+ggplot(pollution1,aes(localdate, SO2.AQI)) + 
+  ggtitle("SO2 AQI over the years") + 
+  stat_summary(fun.y = mean, geom = "line") + 
+  scale_x_date(labels = date_format("%Y-%m"), date_breaks = "6 month") +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+```{r}
+ggplot(pollution1,aes(localdate, CO.AQI)) + 
+  ggtitle("CO AQI over the years") +  
+  stat_summary(fun.y = mean, geom = "line") + 
+  scale_x_date(labels = date_format("%Y-%m"), date_breaks = "6 month") +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+```{r}
+ggplot(pollution1,aes(y=CO.AQI, x=State , colour=localdate)) +
+  ggtitle("CO AQI by state") +
+  geom_boxplot() +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+```{r}
+ggplot(pollution1,aes(y=SO2.AQI, x=State , colour=localdate)) +
+  ggtitle("SO2 AQI by STATE") +
+  geom_boxplot()  +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+```{r}
+ggplot(pollution1,aes(y=NO2.AQI, x=State , colour=localdate)) +
+  ggtitle("NO2 AQI by State") +
+  geom_boxplot()   +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+```{r}
+#pollution1$localdate <- as.Date(as.factor(pollution$localdate), "%Y-%m-%d")
+pollution1$localdate <- as.Date(cut(pollution1$localdate, breaks = "year"))
+pollution1 %>% select(localdate,NO2.Mean,O3.Mean,SO2.Mean,localdate,State) %>% ggplot(aes(localdate))+geom_smooth(aes(y=log(NO2.Mean),colour="NO2_mean"))+geom_smooth(aes(y=log(O3.Mean),colour="O3.Mean"))+geom_smooth(aes(y=log(SO2.Mean),colour="SO2.Mean"))+labs(colour = "Compound", title="Gass change in time",ylab="log of measure")
+```
+
+```{r}
+#EDA
+level_count <- data.table(length(unique(pollution1$Address)),length(unique(pollution1$localdate)),length(unique(pollution1$State)),length(unique(pollution1$CO.Units)),length(unique(pollution1$O3.Units)),length(unique(pollution1$NO2.Units)),length(unique(pollution1$SO2.Units)))
+names(level_count) <- c('Address','State','Date.Local','NO2.Units','O3.Units','SO2.Units','CO.Units')
+level_count
+```
+
+```{r}
+ggplot(pollution1,aes(x = as.factor(Month), y = pollution1$SO2.Mean))+ geom_violin(draw_quantiles=c(.25,.5,.75))+ ggtitle('Mean Daily SO2 per Month')
+```
+```{r}
+ggplot(pollution1[pollution1$Month=="05",],aes(x=Month,y = SO2.Mean))+geom_violin()+geom_jitter()+ggtitle('May SO2 Mean Measurements')
+```
+```{r}
+ggplot(pollution1[pollution1$SO2.Mean<300,],aes(x = as.factor(Month), y = SO2.Mean))+ geom_violin(draw_quantiles=c(.25,.5,.75))+ ggtitle('Mean Daily SO2 per Month (Outliers Excluded) ')
+```
+
+
+```{r}
+ggplot(data = pollution1,aes(x = as.factor(Month), y =CO.Mean))+ geom_violin(draw_quantiles=c(.25,.5,.75))+ ggtitle('Mean Daily CO per Month')
+```
+
+```{r}
+ggplot(data = pollution1,aes(x = as.factor(Month), y = O3.Mean))+ geom_violin(draw_quantiles=c(.25,.5,.75))+ ggtitle('Mean Daily O3 per Month')
+```
+
+```{r}
+ggplot(data = pollution1,aes( x=NO2.Mean,fill = as.factor(Year)))+ geom_density(alpha = 0.5) + ggtitle('Yearly Distributions of Daily NO2 Measurements')
+```
+
+```{r}
+dataset <- subset(pollution1, SO2.Mean < 30)
+ggplot(dataset,aes( x=SO2.Mean,fill = as.factor(Year)))+ geom_density(alpha = 0.5) + ggtitle('Yearly Distributions of Daily SO2 Measurements')
+
+```
+
+```{r}
+ggplot(data = pollution1,aes( x=CO.Mean,fill = as.factor(Year)))+ geom_density(alpha = 0.5) + ggtitle('Yearly Distributions of Daily CO Measurements')
+```
+
+```{r}
+ggplot(data = pollution1,aes( x=pollution1$O3.Mean,fill = as.factor(Year)))+ geom_density(alpha = 0.5) + ggtitle('Yearly Distributions of Daily O3 Measurements')
+```
+
+```{r}
+# random forest
+any(is.na(pollution1))
+pol <- pollution1[,c(2,3,12,16,20,24)]
+str(pol)
+tr1 <- sample.split(pol$NO2.Mean, SplitRatio = 2/3)
+trainDF <- subset(pol,tr1==TRUE)
+testDF<- subset(pol,tr1==FALSE)
+modelRandom<-randomForest(NO2.Mean~., data=trainDF, mtry=3, ntree=10)
+modelRandom
+importance(modelRandom)
+```
+```{r}
+#tr2 <- sample.split(pol$SO2.Mean, SplitRatio = 2/3)
+#train <- subset(pol,tr2==TRUE)
+#test<- subset(pol,tr2==FALSE)
+#model<-randomForest(SO2.Mean~., data=train, mtry=3, ntree=10)
+#model
+#importance(model)
+```
+
